@@ -1,0 +1,34 @@
+
+Assignment 4.sln
+*.vcxproj
+*.filters
+*.sln
+*.user
+Debug/Assignment 4.exe
+Debug/Assignment 4.log
+Debug/Assignment 4.pdb
+Debug/Assignment 4.tlog/Assignment 4.lastbuildstate
+Debug/Assignment 4.tlog/link.command.1.tlog
+Debug/Assignment 4.tlog/link.read.1.tlog
+Debug/Assignment 4.tlog/link.write.1.tlog
+Debug/Assignment 4.tlog/Masm.read.1u.tlog
+Debug/Assignment 4.tlog/Masm.write.1u.tlog
+Debug/Assignment_4.exe
+Debug/Assignment_4.log
+Debug/Assignment_4.pdb
+Debug/Assignment_4.tlog/Assignment_4.lastbuildstate
+Debug/Assignment_4.tlog/link.command.1.tlog
+Debug/Assignment_4.tlog/link.read.1.tlog
+Debug/Assignment_4.tlog/link.write.1.tlog
+Debug/Assignment_4.tlog/Masm.read.1u.tlog
+Debug/Assignment_4.tlog/Masm.write.1u.tlog
+Debug/blit.obj
+Debug/fighter_000.obj
+Debug/game.obj
+Debug/lines.obj
+Debug/stars.obj
+Debug/trig.obj
+.vs/Assignment 4/v16/.suo
+.vs/Assignment 4/v16/Browse.VC.db
+.vs/Assignment_4/v16/.suo
+.vs/Assignment_4/v16/Browse.VC.db
