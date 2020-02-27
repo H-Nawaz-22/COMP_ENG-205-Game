@@ -27,7 +27,15 @@ include keys.inc
 
 
 .CODE
+
+ClearScreen PROC USES esi edi eax
+	cld
+	mov esi, ScreenBitsPtr
+	mov ecx, 640*480
+	mov eax, 0ffffh
 	
+	rep STOSD
+	ret
 
 CheckIntersect PROTO STDCALL oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 
