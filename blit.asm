@@ -15,6 +15,7 @@ include lines.inc
 include trig.inc
 include blit.inc
 
+
 .DATA
 
 	;; If you need to, you can place global variables here
@@ -107,7 +108,7 @@ FixMul PROC USES edx a:DWORD, b:DWORD
 	ret
 FixMul ENDP
 
-RotateBlit PROC USES eax ebx ecx edx esi edi lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:FXPT
+RotateBlit PROC USES eax ebx ecx edx esi edi lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	LOCAL sin_a:FXPT, cos_a:FXPT, shift_X:DWORD, shift_Y:DWORD, dstWidth:DWORD, dstHeight:DWORD, srcX:DWORD, srcY:DWORD
 	LOCAL bwidth:DWORD, bheight:DWORD, transparent:BYTE, sumX:DWORD, sumY:DWORD, dstX:DWORD, dstY:DWORD
 

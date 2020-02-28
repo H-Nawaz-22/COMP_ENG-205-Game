@@ -6,6 +6,7 @@
 ; #########################################################################
 
 
+
 _EECS205BITMAP STRUCT
  dwWidth      DWORD  ?
  dwHeight     DWORD  ?
@@ -14,22 +15,24 @@ _EECS205BITMAP STRUCT
  lpBytes      DWORD  ?
 _EECS205BITMAP ENDS
 
-_AGENT STRUCT
+; ACTOR is for sprites on the screen that have dynamic motion and behavior
+_ACTOR STRUCT
  xpos         DWORD  ?
  ypos         DWORD  ?
  xvel         DWORD  ?
  yvel         DWORD  ?
+ direction    DWORD  0
  bitmapPtr    DWORD  ?
-_AGENT ENDS
+_ACTOR ENDS
 
 EECS205BITMAP TYPEDEF _EECS205BITMAP
-AGENT TYPEDEF _AGENT
+ACTOR TYPEDEF _ACTOR
 
 EXTERNDEF ScreenBitsPtr:DWORD
 
 BasicBlit PROTO STDCALL ptrBitmap:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD
 
-RotateBlit PROTO STDCALL ptrBitmap:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:FXPT
+RotateBlit PROTO STDCALL ptrBitmap:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	   
 
 
