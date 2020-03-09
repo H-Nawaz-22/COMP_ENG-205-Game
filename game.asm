@@ -13,9 +13,9 @@
 .STACK 4096
 option casemap:none  ; case sensitive
 
-include C:\masm32\include\windows.inc
-include C:\masm32\include\winmm.inc
-includelib C:\masm32\lib\winmm.lib
+;include C:\masm32\include\windows.inc
+;include C:\masm32\include\winmm.inc
+;includelib C:\masm32\lib\winmm.lib
 include stars.inc
 include lines.inc
 include trig.inc
@@ -54,6 +54,13 @@ cond:
 	jnz loop1
 	ret
 ClearScreen ENDP
+
+DrawRotatedSprite PROC lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD 
+	shr xcenter, 16
+	shr ycenter, 16
+	INVOKE RotateBlit, lpBmp, xcenter, ycenter, angle
+	ret
+DrawRotatedSprite ENDP
 
 ;; Returns a non-zero value if the sprites specified by oneBitmap and twoBitmap overlap, and returns zero otherwise. The X and Y variables
 ;; specify the center of the respective sprite.
@@ -131,6 +138,7 @@ GameInit PROC USES ebx
 	ret
 GameInit ENDP
 
+<<<<<<< HEAD
 ; Code to be run repeatedly, multiple times a second, to update game.
 GamePlay PROC USES esi ebx ecx edx eax
 
@@ -147,22 +155,47 @@ continue5:
 	cmp ebx, 0
 	jz SkipRotate
 	cmp ebx, 057h ; W
+=======
+RotateFighter PROC KeyValue:DWORD
+	cmp KeyValue, 057h ; W
+>>>>>>> Assignment-5-Attempt-1
 	jnz continue1
 	mov eax, 0
 continue1:
 	cmp ebx, 044h ; D
+	cmp KeyValue, 044h ; D
 	jnz continue2
 	mov eax, PI_HALF
 continue2:
 	cmp ebx, 053h ; S
+	cmp KeyValue, 053h ; S
 	jnz continue3
 	mov eax, PI
 continue3:
 	cmp ebx, 041h ; A
+	cmp KeyValue, 041h ; A
 	jnz continue4
 	mov eax, PI
 	add eax, PI_HALF
 continue4:
+	mov fighter0.direction, eax
+	ret
+RotateFighter ENDP
+
+; Code to be run repeatedly, multiple times a second, to update game.
+GamePlay PROC USES esi ebx ecx edx eax
+	shl MouseStatus.horiz, 16
+	shl MouseStatus.vert, 16
+	; Update fighter's position to mouse location
+	mov ebx, MouseStatus.horiz
+	mov ecx, MouseStatus.vert
+	mov fighter0.xpos, ebx
+	mov fighter0.ypos, ecx
+	; Update fighter's direction to WASD input
+	mov ebx, KeyPress
+	cmp ebx, 0
+	jz SkipRotate
+	INVOKE RotateFighter, ebx
 	mov fighter0.direction, eax
 
 SkipRotate:
@@ -170,14 +203,14 @@ SkipRotate:
 	;Update screen
 	INVOKE ClearScreen
 	INVOKE DrawStarField
-	INVOKE RotateBlit, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
-	INVOKE RotateBlit, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
+	INVOKE DrawRotatedSprite, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
+	INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
 	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.bitmapPtr ; Check for fighter-Asteroid intersection
 	cmp eax, 0
 	jz reset_flag ; Exit if no intersection
 	cmp intersectFlag, 0
 	jnz return	  ; Exit if already intersecting on last call
-	INVOKE PlaySound, offset SndPath, 0, SND_FILENAME OR SND_ASYNC	; Plays select.wav
+	;INVOKE PlaySound, offset SndPath, 0, SND_FILENAME OR SND_ASYNC	; Plays select.wav
 	mov intersectFlag, 1
 	jmp return
 reset_flag:
