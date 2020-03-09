@@ -135,6 +135,8 @@ GameInit ENDP
 GamePlay PROC USES esi ebx ecx edx eax
 
 continue5:
+	shl MouseStatus.horiz, 16
+	shl MouseStatus.horiz, 16
 	; Update fighter's position to mouse location
 	mov ebx, MouseStatus.horiz
 	mov ecx, MouseStatus.vert
