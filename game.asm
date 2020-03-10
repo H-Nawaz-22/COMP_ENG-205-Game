@@ -1,5 +1,5 @@
 ; #########################################################################
-;
+;	Bismillahi rahmanir rahim
 ;   game.asm - Assembly file for CompEng205 Assignment 4/5
 ;	
 ;	INSTRUCTIONS - Control the fighter's position with the mouse, and use WASD to control the fighter's angle. 
@@ -7,6 +7,33 @@
 ;	Sound credit: reliccastle.com/members/1
 ;
 ; #########################################################################
+
+
+;;
+;NOTES:
+;INSHALLAH
+;(1) PRIMITIVE PROJECTILE SYSTEM WORKING
+;CLEAN UP CODE, MAKE NEW .ASM AND ORGANIZE FUNCTIONS, MAKE NEW FUNCTIONS
+;ADD 'ACTIVE' VARIABLE FOR PROJECTILES TO INDICATE IF THEY SHOULD BE DRAWN OR NOT, FIX PROJECTILES RESETTING AFTER 100
+;FIX PAUSE AND CONDITION FOR ROTATE/SHOOTING SO ONLY WASD (*)
+;ADD TIMER TO LIMIT SPEED OF PROJECTILES
+;IMPLEMENT COLLISION FOR PROJECTILES (*)
+;HEALTH SYSTEM FOR AGENTS
+;SPAWNING SYSTEM FOR ENEMIES
+;BEHAVIOR FOR ENEMIES
+;IMPLEMENT SOUND FOR SELECT, PROJECTILES, AND DAMAGE (2)
+;SCORING (3)
+
+;INSHALLAH EXTRA STUFF
+;UPGRADE SPEED, HEATLH, POWER, RANGE, ETC
+;PICKUPS
+;TRICK PICKUPS (NUKE)
+;USE PICKUPS TO BUY UPGRADES
+;SCREEN WIPE EXPLOSION POWERUP
+;SCREEN SHAKING
+;FINAL BOSS
+;PICK STARTER FIGHTER WITH DIFFERENT STARTING STATS
+
 
 .586
 .MODEL FLAT,STDCALL
@@ -21,7 +48,6 @@ include stars.inc
 include lines.inc
 include trig.inc
 include blit.inc
-
 include game.inc
 
 ;; Has keycodes
@@ -34,11 +60,21 @@ PI_HALF DWORD 102943           	;;  PI / 2
 PI DWORD 205887	                ;;  PI 
 TWO_PI DWORD  411774                ;;  2 * PI 
 
+pauseFlag BYTE 0
+
 intersectFlag DWORD 0
-timeLow DWORD ?
-timeHigh DWORD ?
+
+timeLow DWORD 0
+timeHigh DWORD 0
+
+lastKey DWORD 0
+
+
+projectileArraySize DWORD 0
+projectileArray PROJECTILE 100 DUP(<, , , , , , OFFSET nuke_001>)
 
 SndPath BYTE "select.wav",0
+
 .CODE
 
 ;; Makes every pixel on the screen black
@@ -57,7 +93,7 @@ cond:
 	ret
 ClearScreen ENDP
 
-DrawRotatedSprite PROC lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
+DrawRotatedSprite PROC USES eax lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	INVOKE FixMul, xcenter, 1
 	mov xcenter, eax
 	INVOKE FixMul, ycenter, 1
@@ -144,27 +180,31 @@ GameInit PROC USES ebx
 	ret
 GameInit ENDP
 
-RotateFighter PROC KeyValue:DWORD
+RotateFighter PROC USES ebx KeyValue:DWORD
+	mov eax, fighter0.direction
 	cmp KeyValue, 057h ; W
 	jnz continue1
 	mov eax, 0
+	jmp return
 continue1:
 	cmp ebx, 044h ; D
 	cmp KeyValue, 044h ; D
 	jnz continue2
 	mov eax, PI_HALF
+	jmp return
 continue2:
 	cmp ebx, 053h ; S
 	cmp KeyValue, 053h ; S
 	jnz continue3
 	mov eax, PI
+	jmp return
 continue3:
 	cmp ebx, 041h ; A
 	cmp KeyValue, 041h ; A
-	jnz continue4
+	jnz return
 	mov eax, PI
 	add eax, PI_HALF
-continue4:
+return:
 	mov fighter0.direction, eax
 	ret
 RotateFighter ENDP
@@ -205,12 +245,119 @@ return:
 	ret
 InverseSqrt ENDP
 
+SpawnProjectile PROC USES eax ebx ecx esi edx xcenter:DWORD, ycenter:DWORD, angle:DWORD
+	LOCAL direction1:DWORD
+	mov eax, projectileArraySize
+	mov ecx, 28
+	mul ecx
+	mov esi, OFFSET projectileArray
+	add esi, eax
+	mov ebx, angle
+	cmp ebx, 0
+	jnz continue1
+	mov direction1, 1
+	mov (PROJECTILE PTR[esi]).orientation, 1
+	jmp continue4
+continue1:
+	cmp ebx, PI_HALF
+	jnz continue2
+	mov direction1, 0
+	mov (PROJECTILE PTR[esi]).orientation, 0
+	jmp continue4
+continue2:
+	cmp ebx, PI
+	jnz continue3
+	mov direction1, 0
+	mov (PROJECTILE PTR[esi]).orientation, 1
+	jmp continue4
+continue3:
+	mov edx, PI
+	add edx, PI_HALF
+	cmp ebx, edx
+	jnz continue4
+	mov direction1, 1
+	mov (PROJECTILE PTR[esi]).orientation, 0
+continue4:
+	mov eax, xcenter
+	mov (PROJECTILE PTR[esi]).xpos, eax
+	mov eax, ycenter
+	mov (PROJECTILE PTR[esi]).ypos, eax
+	mov eax, 01fffffh
+	mov (PROJECTILE PTR[esi]).vel, eax
+	mov eax, direction1
+	mov (PROJECTILE PTR[esi]).direction, eax
+	inc projectileArraySize	
+	cmp projectileArraySize, 100
+	jl return
+	mov projectileArraySize, 0
+return:
+	ret
+SpawnProjectile ENDP
+
+IterateProjectiles PROC USES eax ebx ecx edx esi
+	mov esi, OFFSET projectileArray
+	mov eax, projectileArraySize
+	mov ecx, 28
+	mul ecx
+	add eax, esi
+	jmp eval
+body:
+	mov ecx, (PROJECTILE PTR[esi]).vel
+	mov ebx, (PROJECTILE PTR[esi]).direction
+	mov edx, (PROJECTILE PTR[esi]).orientation
+	cmp ebx, 0
+	jz dontNegate
+	neg ecx
+dontNegate:
+	cmp edx, 0
+	jnz continue1
+	add (PROJECTILE PTR[esi]).xpos, ecx
+	jmp continue2
+continue1:
+	add (PROJECTILE PTR[esi]).ypos, ecx
+continue2:
+	add esi, 28
+eval:
+	cmp esi, eax
+	jl body
+	ret
+IterateProjectiles ENDP
+
+DrawProjectiles PROC USES eax ebx ecx edx esi
+	mov esi, OFFSET projectileArray
+	mov eax, projectileArraySize
+	mov ecx, 28
+	mul ecx
+	add eax, esi
+	jmp eval
+body:
+	INVOKE DrawRotatedSprite, (PROJECTILE PTR[esi]).bitmapPtr, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
+	add esi, 28
+eval:
+	cmp esi, eax
+	jl body
+	ret
+DrawProjectiles ENDP
+
 ; Code to be run repeatedly, multiple times a second, to update game.
 GamePlay PROC USES esi ebx ecx edx eax
 	LOCAL mouseX:DWORD, mouseY:DWORD, inverseSqrt:DWORD, fighterXTrue:DWORD, fighterYTrue:DWORD, speedMul:DWORD
+	mov eax, KeyPress
+	cmp eax, 050h
+	jnz dontTogglePause
+	cmp eax, lastKey
+	jz dontTogglePause
+	not pauseFlag
+dontTogglePause:
+	mov lastKey, eax
+	cmp pauseFlag, 0
+	jnz return
+
+
 	mov speedMul, 0800ffh
 	mov fighter0.bitmapPtr, offset fighter_0_still
-	;For debugging, finds integer pixel position for fighter
+
+	;For debugging, calculates integer pixel position for fighter
 	mov eax, fighter0.xpos
 	shr eax, 16
 	mov fighterXTrue, eax
@@ -218,8 +365,10 @@ GamePlay PROC USES esi ebx ecx edx eax
 	shr eax, 16
 	mov fighterYTrue, eax
 
+	;For debugging, force mouse location to constant value
 	;mov MouseStatus.horiz, 500
 	;mov MouseStatus.vert, 100
+	
 
 	;Sets mouseX and mouseY; also sets ebx to delta x and ecx to delta y
 	mov ebx, MouseStatus.horiz
@@ -250,22 +399,28 @@ fighterStill1:
 fighterStill2:
 
 	; Update fighter's direction to WASD input
+
 	mov ebx, KeyPress
 	cmp ebx, 0
 	jz SkipRotate
-	mov eax, fighter0.direction
 	INVOKE RotateFighter, ebx
 	mov fighter0.direction, eax
-
+	rdtsc
+	;cmp edx, timeHigh
+	;jz SkipRotate
+	INVOKE SpawnProjectile, fighter0.xpos, fighter0.ypos, fighter0.direction
 SkipRotate:
+	rdtsc
+	mov timeHigh, edx
 	add asteroid1.direction, 10000 ; Increment asteroid's angle
+	INVOKE IterateProjectiles
 	;Update screen
 	INVOKE ClearScreen
 	INVOKE DrawStarField
 	INVOKE DrawRotatedSprite, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
 	INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
 	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.bitmapPtr ; Check for fighter-Asteroid intersection
-	
+	INVOKE DrawProjectiles
 	;Checks for intersection
 	cmp eax, 0
 	jz reset_flag ; Exit if no intersection
