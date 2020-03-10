@@ -169,18 +169,19 @@ continue4:
 	ret
 RotateFighter ENDP
 
-UpdateFighterVelocity PROC USES ebx edx fighterX:DWORD, fighterY:DWORD, mouseX:DWORD, mouseY:DWORD
+;Returns the inverse magnitude of a 2-D vector with initial point (x0,y0) and final point (x1,y1). The return value is FXPT.
+InverseSqrt PROC USES ebx edx x0:DWORD, y0:DWORD, x1:DWORD, y1:DWORD
 	LOCAL sumSquares:DWORD, sqrt:DWORD, scaling:DWORD, answer:DWORD, threshold:DWORD
-	mov threshold, 100
+	mov threshold, 50
 	mov answer, 0
-	mov ebx, mouseX
-	sub ebx, fighterX
+	mov ebx, x1
+	sub ebx, x0
 	mov eax, ebx
 	imul ebx
 	;INVOKE FixMul, eax, ebx
 	mov sumSquares, edx
-	mov ebx, mouseY
-	sub ebx, fighterY
+	mov ebx, y1
+	sub ebx, y0
 	mov eax, ebx
 	imul ebx
 	;INVOKE FixMul, eax, ebx
@@ -202,58 +203,52 @@ UpdateFighterVelocity PROC USES ebx edx fighterX:DWORD, fighterY:DWORD, mouseX:D
 return:
 	mov eax, answer
 	ret
-UpdateFighterVelocity ENDP
+InverseSqrt ENDP
+
 ; Code to be run repeatedly, multiple times a second, to update game.
 GamePlay PROC USES esi ebx ecx edx eax
-	LOCAL mouseX:DWORD, mouseY:DWORD, inverseSqrt:DWORD, fighterXTrue:DWORD, fighterYTrue:DWORD, scaler:DWORD, differenceX:DWORD, differenceY:DWORD
-	mov scaler, 05ffffh
+	LOCAL mouseX:DWORD, mouseY:DWORD, inverseSqrt:DWORD, fighterXTrue:DWORD, fighterYTrue:DWORD, speedMul:DWORD
+	mov speedMul, 0800ffh
+	mov fighter0.bitmapPtr, offset fighter_0_still
+	;For debugging, finds integer pixel position for fighter
 	mov eax, fighter0.xpos
 	shr eax, 16
 	mov fighterXTrue, eax
 	mov eax, fighter0.xpos
 	shr eax, 16
 	mov fighterYTrue, eax
+
 	;mov MouseStatus.horiz, 500
 	;mov MouseStatus.vert, 100
-	; Update fighter's position to mouse location
+
+	;Sets mouseX and mouseY; also sets ebx to delta x and ecx to delta y
 	mov ebx, MouseStatus.horiz
 	shl ebx, 16
 	mov mouseX, ebx
+	sub ebx, fighter0.xpos
 	mov ecx, MouseStatus.vert
 	shl ecx, 16
 	mov mouseY, ecx
-	;mov fighter0.xpos, ebx
-	;mov fighter0.ypos, ecx
-	INVOKE UpdateFighterVelocity, fighter0.xpos, fighter0.ypos, mouseX, mouseY
+	sub ecx, fighter0.ypos
+
+	INVOKE InverseSqrt, fighter0.xpos, fighter0.ypos, mouseX, mouseY	;Gets inverse square root of (delta x)^2 + (delta y)^2
 	mov inverseSqrt, eax
-	mov ebx, mouseX
-	sub ebx, fighter0.xpos
-	mov differenceX, ebx
-	INVOKE FixMul, inverseSqrt, ebx
-	INVOKE FixMul, eax, scaler
-	;mov ebx, eax
-	;mov ecx, differenceX
-	;and ebx, 7fffffffh
-	;and ecx, 7fffffffh
-	;cmp eax, ecx
-	;jle dontreduce1
-	;mov eax, differenceX
-;dontreduce1:
-	add fighter0.xpos, eax
-	mov ebx, mouseY
-	sub ebx, fighter0.ypos
-	mov differenceY, ebx
-	INVOKE FixMul, inverseSqrt, ebx
-	INVOKE FixMul, eax, scaler
-	;mov ebx, eax
-	;mov ecx, differenceY
-	;and ebx, 7fffffffh
-	;and ecx, 7fffffffh
-	;cmp eax, ecx
-	;jle dontreduce2
-	;mov eax, differenceY
-;dontreduce2:
-	add fighter0.ypos, eax
+
+	INVOKE FixMul, inverseSqrt, ebx ;Normalises delta x
+	INVOKE FixMul, eax, speedMul	;Speed multiplier
+	add fighter0.xpos, eax			;Updates position
+	cmp eax, 0
+	jz fighterStill1
+	mov fighter0.bitmapPtr, offset fighter_0_moving
+fighterStill1:
+	INVOKE FixMul, inverseSqrt, ecx ; Normalises delta y
+	INVOKE FixMul, eax, speedMul	; Speed multiplier
+	add fighter0.ypos, eax			; Updates position
+	cmp eax, 0
+	jz fighterStill2
+	mov fighter0.bitmapPtr, offset fighter_0_moving
+fighterStill2:
+
 	; Update fighter's direction to WASD input
 	mov ebx, KeyPress
 	cmp ebx, 0
@@ -270,6 +265,8 @@ SkipRotate:
 	INVOKE DrawRotatedSprite, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
 	INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
 	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.bitmapPtr ; Check for fighter-Asteroid intersection
+	
+	;Checks for intersection
 	cmp eax, 0
 	jz reset_flag ; Exit if no intersection
 	cmp intersectFlag, 0
