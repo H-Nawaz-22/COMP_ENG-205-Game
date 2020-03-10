@@ -317,7 +317,7 @@ asteroid_000 EECS205BITMAP <56, 53, 255,, offset asteroid_000 + sizeof asteroid_
 	BYTE 049h,049h,049h,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 
-fighter0 ACTOR <20971520, 15728640, 0, 0, 0, offset fighter_000>
+fighter0 ACTOR <6553600, 6553600, 0, 0, 0, offset fighter_000>
 asteroid1 ACTOR <20971520, 16384000, 0, 0, 0, offset asteroid_000>
 
 .CODE

@@ -99,6 +99,7 @@ BasicBlit PROC USES eax ebx ecx edx esi edi ptrBitmap:PTR EECS205BITMAP , xcente
 BasicBlit ENDP
 
 ;; Returns the product of two fixed point operands
+FixMul PROTO STDCALL a:DWORD, b:DWORD
 FixMul PROC USES edx a:DWORD, b:DWORD
 	mov eax, a
 	imul b
