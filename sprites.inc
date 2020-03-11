@@ -17,6 +17,5 @@ SpawnProjectile PROTO STDCALL xcenter:DWORD, ycenter:DWORD, angle:DWORD
 IterateProjectiles PROTO STDCALL
 DrawProjectiles PROTO STDCALL
 CheckIntersect PROTO STDCALL
-ProjectileIntersect PROTO STDCALL
 
 

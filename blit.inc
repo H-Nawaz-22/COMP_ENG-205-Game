@@ -22,6 +22,7 @@ _ACTOR STRUCT
  xvel         DWORD  ?
  yvel         DWORD  ?
  direction    DWORD  0
+ health       DWORD  3
  bitmapPtr    DWORD  ?
 _ACTOR ENDS
 
@@ -30,7 +31,7 @@ _PROJECTILE STRUCT
  ypos         DWORD  ?
  vel          DWORD  ?
  distance     DWORD  0  
- orientation   DWORD ? ;0 for x, 1, for y
+ orientation  DWORD  ? ;0 for x, 1, for y
  direction    DWORD  ? ;0 for positive, 1 for negative
  bitmapPtr    DWORD  ?
 _PROJECTILE ENDS

@@ -25,7 +25,7 @@ include keys.inc
 .CODE
 SpawnProjectile PROC USES eax ebx ecx esi edx xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	LOCAL direction1:DWORD
-	mov eax, projectileArraySize
+	mov eax, projectileArrayLength
 	mov ecx, 28
 	mul ecx
 	mov esi, OFFSET projectileArray
@@ -64,17 +64,17 @@ continue4:
 	mov (PROJECTILE PTR[esi]).vel, eax
 	mov eax, direction1
 	mov (PROJECTILE PTR[esi]).direction, eax
-	inc projectileArraySize	
-	cmp projectileArraySize, 100
+	inc projectileArrayLength	
+	cmp projectileArrayLength, 100
 	jl return
-	mov projectileArraySize, 0
+	mov projectileArrayLength, 0
 return:
 	ret
 SpawnProjectile ENDP
 
 IterateProjectiles PROC USES eax ebx ecx edx esi
 	mov esi, OFFSET projectileArray
-	mov eax, projectileArraySize
+	mov eax, projectileArrayLength
 	mov ecx, 28
 	mul ecx
 	add eax, esi
@@ -103,9 +103,9 @@ IterateProjectiles ENDP
 
 DrawProjectiles PROC USES eax ebx ecx edx esi
 	mov esi, OFFSET projectileArray
-	mov eax, projectileArraySize
+	mov eax, projectileArrayLength
 	mov ecx, 28
-	mul ecx
+	imul ecx
 	add eax, esi
 	jmp eval
 body:
@@ -122,6 +122,15 @@ DrawProjectiles ENDP
 CheckIntersect PROTO STDCALL oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 CheckIntersect PROC STDCALL USES ebx ecx esi oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
 LOCAL one_Left:DWORD, one_Right:DWORD, one_Top:DWORD, one_Bottom:DWORD, two_Left:DWORD, two_Right:DWORD, two_Top:DWORD, two_Bottom:DWORD
+
+INVOKE FixMul, oneX, 1
+mov oneX, eax
+INVOKE FixMul, oneY, 1
+mov oneY, eax
+INVOKE FixMul, twoX, 1
+mov twoX, eax
+INVOKE FixMul, twoY, 1
+mov twoY, eax
 
 ; --- Sprite 1 ---
 mov esi, oneBitmap 
@@ -184,4 +193,26 @@ return:
 	ret 
 CheckIntersect ENDP
 
+ProjectileIntersect PROC USES ebx ecx edx esi
+	mov esi, OFFSET projectileArray
+	mov eax, projectileArrayLength
+	mov ecx, 28
+	imul ecx
+	add eax, esi
+	mov ebx, eax
+	mov ecx, 0
+	jmp eval
+body:
+	INVOKE CheckIntersect, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, (PROJECTILE PTR[esi]).bitmapPtr, enemy0.xpos, enemy0.ypos, enemy0.bitmapPtr
+	cmp eax, 0
+	jz noCollide
+	inc ecx
+noCollide:
+	add esi, 28
+eval:
+	cmp esi, ebx
+	jl body
+	mov eax, ecx
+	ret
+ProjectileIntersect ENDP
 END

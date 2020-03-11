@@ -42,7 +42,7 @@ return:
 DrawPixel ENDP
 
 BasicBlit PROC USES eax ebx ecx edx esi edi ptrBitmap:PTR EECS205BITMAP , xcenter:DWORD, ycenter:DWORD
-	LOCAL transparent_color:BYTE, init_x:DWORD, final_x:DWORD, final_y:DWORD
+	LOCAL transparent_color:BYTE, final_x:DWORD, final_y:DWORD
 
 	mov esi, ptrBitmap ; Pointer to beginning of EECS205BITMAP
 

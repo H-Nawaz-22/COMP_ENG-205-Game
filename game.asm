@@ -18,7 +18,7 @@
 
 ;ADD 'ACTIVE' VARIABLE FOR PROJECTILES TO INDICATE IF THEY SHOULD BE DRAWN OR NOT, FIX PROJECTILES RESETTING AFTER 100
 
-;FIX PAUSE AND CONDITION FOR ROTATE/SHOOTING SO ONLY WASD (*)
+
 ;ADD TIMER TO LIMIT SPEED OF PROJECTILES
 ;IMPLEMENT COLLISION FOR PROJECTILES (*)
 ;HEALTH SYSTEM FOR AGENTS
@@ -62,7 +62,6 @@ include keys.inc
 ;;  These are fixed point values that correspond to important angles
 
 pauseFlag BYTE 0
-
 intersectFlag DWORD 0
 
 timeLow DWORD 0
@@ -70,8 +69,8 @@ timeHigh DWORD 0
 
 lastKey DWORD 0
 
-projectileArraySize DWORD 10
-projectileArray PROJECTILE 100 DUP(<300, 200, , , , , OFFSET nuke_001>)
+projectileArrayLength DWORD 0
+projectileArray PROJECTILE 100 DUP(<, , , , , , OFFSET nuke_001>)
 
 SndPath BYTE "select.wav",0
 
@@ -123,13 +122,11 @@ return:
 RotateFighter ENDP
 
 
-DrawRotatedSprite PROC USES eax lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
+DrawRotatedSprite PROC USES eax ebx ecx edx lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	INVOKE FixMul, xcenter, 1
 	mov xcenter, eax
 	INVOKE FixMul, ycenter, 1
 	mov ycenter, eax
-	;shr xcenter, 16
-	;shr ycenter, 16
 	INVOKE RotateBlit, lpBmp, xcenter, ycenter, angle
 	ret
 DrawRotatedSprite ENDP
@@ -208,7 +205,7 @@ dontTogglePause:
 	;For debugging, force mouse location to constant value
 	;mov MouseStatus.horiz, 500
 	;mov MouseStatus.vert, 100
-	
+	;mov KeyPress, 044h
 
 	;Sets mouseX and mouseY; also sets ebx to delta x and ecx to delta y
 	mov ebx, MouseStatus.horiz
@@ -246,17 +243,36 @@ fighterStill2:
 	;cmp edx, timeHigh
 	;jz SkipRotate
 	INVOKE SpawnProjectile, fighter0.xpos, fighter0.ypos, fighter0.direction
+	;mov ebx, OFFSET projectileArraySize
+	;lea ebx, projectileArraySize
+	;mov ebx, OFFSET thing
+	;mov DWORD PTR [ebx], 1
+	;mov lastKey, 1
+	;mov projectileArraySize, 1
 SkipRotate:
 	rdtsc
 	mov timeHigh, edx
 	add asteroid1.direction, 10000 ; Increment asteroid's angle
-	;INVOKE IterateProjectiles
+	INVOKE IterateProjectiles
 	;Update screen
 	INVOKE ClearScreen
 	INVOKE DrawStarField
 	INVOKE DrawRotatedSprite, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
+	INVOKE DrawRotatedSprite, enemy0.bitmapPtr, enemy0.xpos, enemy0.ypos, enemy0.direction	; enemy
 	INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
-	INVOKE DrawProjectiles
+	INVOKE DrawProjectiles ;fighter's projectiles
+
+	;mov esi, OFFSET thing
+	;mov ebx, OFFSET nuke_001
+	;INVOKE DrawRotatedSprite, (PROJECTILE PTR[esi]).bitmapPtr, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
+	;INVOKE DrawRotatedSprite, ebx, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
+	
+	INVOKE ProjectileIntersect
+	sub enemy0.health, eax
+	cmp enemy0.health, 0
+	jge enemyAlive
+	mov enemy0.xpos, 0
+enemyAlive:
 	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.bitmapPtr ; Check for fighter-Asteroid intersection
 
 	;Checks for intersection
