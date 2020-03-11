@@ -30,9 +30,9 @@ _PROJECTILE STRUCT
  xpos         DWORD  ?
  ypos         DWORD  ?
  vel          DWORD  ?
- distance     DWORD  0  
+ distance     DWORD  ?  
  orientation  DWORD  ? ;0 for x, 1, for y
- direction    DWORD  ? ;0 for positive, 1 for negative
+ direction    DWORD  0 ;0 for positive, 1 for negative
  bitmapPtr    DWORD  ?
 _PROJECTILE ENDS
 

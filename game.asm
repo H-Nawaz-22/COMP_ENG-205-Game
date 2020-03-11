@@ -1,5 +1,5 @@
 ; #########################################################################
-;	Bismillahi rahmanir rahim
+;	
 ;   game.asm - Assembly file for CompEng205 Assignment 4/5
 ;	
 ;	INSTRUCTIONS - Control the fighter's position with the mouse, and use WASD to control the fighter's angle. 
@@ -11,24 +11,19 @@
 
 ;;
 ;NOTES:
-;INSHALLAH
 ;(1) PRIMITIVE PROJECTILE SYSTEM WORKING
 ;CLEAN UP CODE, MAKE NEW .ASM AND ORGANIZE FUNCTIONS, MAKE NEW FUNCTIONS
 
 
 ;ADD 'ACTIVE' VARIABLE FOR PROJECTILES TO INDICATE IF THEY SHOULD BE DRAWN OR NOT, FIX PROJECTILES RESETTING AFTER 100
-;IMPLEMENT COLLISION FOR PROJECTILES (*)
-;HEALTH SYSTEM FOR AGENTS
 
 ;ADD TIMER TO LIMIT SPEED OF PROJECTILES
-
+;IMPLEMENT SOUND FOR PROJECTILES (2)
 
 ;SPAWNING SYSTEM FOR ENEMIES
-;BEHAVIOR FOR ENEMIES
-;IMPLEMENT SOUND FOR SELECT, PROJECTILES, AND DAMAGE (2)
-;SCORING (3)
+;POWERUPS (3)
 
-;INSHALLAH EXTRA STUFF
+;EXTRA STUFF
 ;UPGRADE SPEED, HEATLH, POWER, RANGE, ETC
 ;PICKUPS
 ;TRICK PICKUPS (NUKE)
@@ -44,10 +39,11 @@
 .STACK 4096
 option casemap:none  ; case sensitive
 
-;include C:\masm32\include\windows.inc
-;include C:\masm32\include\winmm.inc
-;includelib C:\masm32\lib\winmm.lib
-
+include C:\masm32\include\windows.inc
+include C:\masm32\include\winmm.inc
+includelib C:\masm32\lib\winmm.lib
+include \masm32\include\user32.inc
+includelib \masm32\lib\user32.lib
 include stars.inc
 include lines.inc
 include trig.inc
@@ -68,12 +64,22 @@ intersectFlag DWORD 0
 timeLow DWORD 0
 timeHigh DWORD 0
 
+stage DWORD 0
+statusFlag DWORD 0
+score DWORD 0
+
+gameOverMessage BYTE "Game Over! Score: %d", 0
+outStr BYTE 256 DUP(0)
+
+speedMul DWORD 0400ffh
+enemyspeedMul DWORD 0400ffh
 lastKey DWORD 0
 
 projectileArrayLength DWORD 0
-projectileArray PROJECTILE 100 DUP(<, , , , , , OFFSET nuke_001>)
+projectileArray PROJECTILE 100 DUP(<20971520, 15728640, 100000 , , 1,1 , OFFSET nuke_001>)
 
-SndPath BYTE "select.wav",0
+SndPathSelect BYTE "select.wav",0
+SndPathDamage BYTE "damage.wav",0
 
 .CODE
 
@@ -93,6 +99,15 @@ cond:
 	ret
 ClearScreen ENDP
 
+GameOver PROC
+	INVOKE ClearScreen
+	push score
+	push offset gameOverMessage
+	push offset outStr
+	call wsprintf
+	add esp, 12
+	invoke DrawStr, offset outStr, 230, 200, 0ffh
+GameOver ENDP
 
 RotateFighter PROC USES ebx KeyValue:DWORD
 	mov eax, 1
@@ -122,13 +137,185 @@ return:
 	ret
 RotateFighter ENDP
 
+DefeatEnemy PROC USES ebx ecx esi xpos:DWORD, ypos:DWORD
+	inc stage
+	inc score
+	INVOKE FixMul, enemyspeedMul, 010f00h
+	mov enemyspeedMul, eax
+	rdtsc
+	and eax, 01b
+	cmp eax, 1
+	jl noPowerup
+	mov ebx, xpos
+	mov ecx, ypos
+	lea esi, speedPowerup
+	mov [esi], ebx
+	add esi, 4
+	mov [esi], ecx
+noPowerup:
+	ret
+DefeatEnemy ENDP
 
-DrawRotatedSprite PROC USES eax ebx ecx edx lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
+InflictDamage PROC
+	dec fighter0.health
+	INVOKE PlaySound ,offset SndPathDamage, 0, SND_FILENAME OR SND_ASYNC	; Plays damage.wav
+	mov eax, 0
+	cmp fighter0.health, 0
+	jnz fighterAlive
+	mov statusFlag, 1
+fighterAlive:
+	ret
+InflictDamage ENDP
+
+InverseSqrt PROTO x0:DWORD, x1:DWORD, y0:DWORD, y1:DWORD
+
+MoveEnemies PROC USES ebx ecx
+	LOCAL inverseSqrt:DWORD
+	mov ebx, fighter0.xpos
+	sub ebx, enemy0.xpos
+	mov ecx, fighter0.ypos
+	sub ecx, enemy0.ypos
+	INVOKE InverseSqrt, fighter0.xpos, fighter0.ypos, enemy0.xpos, enemy0.ypos
+	mov inverseSqrt, eax
+	INVOKE FixMul, inverseSqrt, ebx ;Normalises delta x
+	INVOKE FixMul, eax, enemyspeedMul	;Speed multiplier
+	add enemy0.xpos, eax			;Updates position
+enemy0Still1:
+	INVOKE FixMul, inverseSqrt, ecx ; Normalises delta y
+	INVOKE FixMul, eax, enemyspeedMul	; Speed multiplier
+	add enemy0.ypos, eax			; Updates position
+enemy0Still2:
+	INVOKE ProjectileIntersect, OFFSET enemy0
+	sub enemy0.health, eax
+	cmp enemy0.health, 0
+	jge enemy0Alive
+	INVOKE DefeatEnemy, enemy0.xpos, enemy0.ypos
+	mov enemy0.xpos, -10000000
+	mov enemy0.ypos, -10000000
+	mov enemy0.health, 5
+enemy0Alive:	
+	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, enemy0.xpos, enemy0.ypos, enemy0.bitmapPtr
+	cmp eax, 0
+	jz noDamage1
+	INVOKE InflictDamage
+	mov enemy0.xpos, -10000000
+	mov enemy0.ypos, -10000000
+	mov enemy0.health, 5
+noDamage1:
+	cmp stage, 2
+	jle return
+
+	mov ebx, fighter0.xpos
+	sub ebx, enemy1.xpos
+	mov ecx, fighter0.ypos
+	sub ecx, enemy1.ypos
+	INVOKE InverseSqrt, fighter0.xpos, fighter0.ypos, enemy1.xpos, enemy1.ypos
+	mov inverseSqrt, eax
+	INVOKE FixMul, inverseSqrt, ebx ;Normalises delta x
+	INVOKE FixMul, eax, enemyspeedMul	;Speed multiplier
+	add enemy1.xpos, eax			;Updates position
+enemy1Still1:
+	INVOKE FixMul, inverseSqrt, ecx ; Normalises delta y
+	INVOKE FixMul, eax, enemyspeedMul	; Speed multiplier
+	add enemy1.ypos, eax			; Updates position
+enemy1Still2:
+	INVOKE ProjectileIntersect, OFFSET enemy1
+	sub enemy1.health, eax
+	cmp enemy1.health, 0
+	jge enemy1Alive
+	INVOKE DefeatEnemy, enemy1.xpos, enemy1.ypos
+	mov enemy1.xpos, 49457280
+	mov enemy1.ypos, -10000000
+	mov enemy1.health, 5
+enemy1Alive:	
+	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, enemy1.xpos, enemy1.ypos, enemy1.bitmapPtr
+	cmp eax, 0
+	jz noDamage2
+	INVOKE InflictDamage
+	mov enemy1.xpos, 49457280
+	mov enemy1.ypos, -10000000
+	mov enemy1.health, 5
+noDamage2:
+	cmp stage, 3
+	jle return
+
+	mov ebx, fighter0.xpos
+	sub ebx, enemy2.xpos
+	mov ecx, fighter0.ypos
+	sub ecx, enemy2.ypos
+	INVOKE InverseSqrt, fighter0.xpos, fighter0.ypos, enemy2.xpos, enemy2.ypos
+	mov inverseSqrt, eax
+	INVOKE FixMul, inverseSqrt, ebx ;Normalises delta x
+	INVOKE FixMul, eax, enemyspeedMul	;Speed multiplier
+	add enemy2.xpos, eax			;Updates position
+enemy2Still1:
+	INVOKE FixMul, inverseSqrt, ecx ; Normalises delta y
+	INVOKE FixMul, eax, enemyspeedMul	; Speed multiplier
+	add enemy2.ypos, eax			; Updates position
+enemy2Still2:
+	INVOKE ProjectileIntersect, OFFSET enemy2
+	sub enemy2.health, eax
+	cmp enemy2.health, 0
+	jge enemy2Alive
+	INVOKE DefeatEnemy, enemy2.xpos, enemy2.ypos
+	mov enemy2.xpos, -10000000 
+	mov enemy2.ypos, 49457280
+	mov enemy2.health, 5
+enemy2Alive:	
+	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, enemy2.xpos, enemy2.ypos, enemy2.bitmapPtr
+	cmp eax, 0
+	jz noDamage3
+	INVOKE InflictDamage
+	mov enemy2.xpos, -10000000 
+	mov enemy2.ypos, 49457280
+	mov enemy2.health, 5
+noDamage3:
+	cmp stage, 5
+	jle return
+
+	mov ebx, fighter0.xpos
+	sub ebx, enemy3.xpos
+	mov ecx, fighter0.ypos
+	sub ecx, enemy3.ypos
+	INVOKE InverseSqrt, fighter0.xpos, fighter0.ypos, enemy3.xpos, enemy3.ypos
+	mov inverseSqrt, eax
+	INVOKE FixMul, inverseSqrt, ebx ;Normalises delta x
+	INVOKE FixMul, eax, enemyspeedMul	;Speed multiplier
+	add enemy3.xpos, eax			;Updates position
+enemy3Still1:
+	INVOKE FixMul, inverseSqrt, ecx ; Normalises delta y
+	INVOKE FixMul, eax, enemyspeedMul	; Speed multiplier
+	add enemy3.ypos, eax			; Updates position
+enemy3Still2:
+	INVOKE ProjectileIntersect, OFFSET enemy3
+	sub enemy3.health, eax
+	cmp enemy3.health, 0
+	jge enemy3Alive
+	INVOKE DefeatEnemy, enemy3.xpos, enemy3.ypos
+	mov enemy3.xpos, 49457280 
+	mov enemy3.ypos, 49457280
+	mov enemy3.health, 5
+enemy3Alive:	
+	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, enemy3.xpos, enemy3.ypos, enemy3.bitmapPtr
+	cmp eax, 0
+	jz noDamage4
+	INVOKE InflictDamage
+	mov enemy3.xpos, 49457280
+	mov enemy3.ypos, 49457280
+	mov enemy3.health, 5
+noDamage4:
+return:
+	ret
+MoveEnemies ENDP
+
+DrawRotatedSprite PROC USES ebx ecx edx lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
+	mov ebx, eax ;stores eax
 	INVOKE FixMul, xcenter, 1
 	mov xcenter, eax
 	INVOKE FixMul, ycenter, 1
 	mov ycenter, eax
 	INVOKE RotateBlit, lpBmp, xcenter, ycenter, angle
+	mov eax, ebx
 	ret
 DrawRotatedSprite ENDP
 
@@ -167,7 +354,7 @@ return:
 	mov eax, answer
 	ret
 InverseSqrt ENDP
-
+ 
 ; Code to be run once when the game first starts up.
 GameInit PROC USES ebx
 	INVOKE DrawStarField
@@ -179,7 +366,7 @@ GameInit ENDP
 
 ; Code to be run repeatedly, multiple times a second, to update game.
 GamePlay PROC USES esi ebx ecx edx eax
-	LOCAL mouseX:DWORD, mouseY:DWORD, inverseSqrt:DWORD, fighterXTrue:DWORD, fighterYTrue:DWORD, speedMul:DWORD
+	LOCAL mouseX:DWORD, mouseY:DWORD, inverseSqrt:DWORD
 	mov eax, KeyPress
 	cmp eax, 050h
 	jnz dontTogglePause
@@ -191,17 +378,13 @@ dontTogglePause:
 	cmp pauseFlag, 0
 	jnz return
 
+	cmp statusFlag, 0
+	jz continueGame
+	INVOKE GameOver
+	jmp return
+continueGame:
 
-	mov speedMul, 0800ffh
 	mov fighter0.bitmapPtr, offset fighter_0_still
-
-	;For debugging, calculates integer pixel position for fighter
-	mov eax, fighter0.xpos
-	shr eax, 16
-	mov fighterXTrue, eax
-	mov eax, fighter0.xpos
-	shr eax, 16
-	mov fighterYTrue, eax
 
 	;For debugging, force mouse location to constant value
 	;mov MouseStatus.horiz, 500
@@ -244,38 +427,46 @@ fighterStill2:
 	;cmp edx, timeHigh
 	;jz SkipRotate
 	INVOKE SpawnProjectile, fighter0.xpos, fighter0.ypos, fighter0.direction
-	;mov ebx, OFFSET projectileArraySize
-	;lea ebx, projectileArraySize
-	;mov ebx, OFFSET thing
-	;mov DWORD PTR [ebx], 1
-	;mov lastKey, 1
-	;mov projectileArraySize, 1
+
 SkipRotate:
+	INVOKE MoveEnemies
+	
 	rdtsc
 	mov timeHigh, edx
 	add asteroid1.direction, 10000 ; Increment asteroid's angle
 	INVOKE IterateProjectiles
+
+
+
 	;Update screen
 	INVOKE ClearScreen
 	INVOKE DrawStarField
 	INVOKE DrawRotatedSprite, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
+	INVOKE DrawRotatedSprite, speedPowerup.bitmapPtr, speedPowerup.xpos, speedPowerup.ypos, 0
 	INVOKE DrawRotatedSprite, enemy0.bitmapPtr, enemy0.xpos, enemy0.ypos, enemy0.direction	; enemy
-	INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
+	INVOKE DrawRotatedSprite, enemy1.bitmapPtr, enemy1.xpos, enemy1.ypos, enemy1.direction	; enemy
+	INVOKE DrawRotatedSprite, enemy2.bitmapPtr, enemy2.xpos, enemy2.ypos, enemy2.direction	; enemy
+	INVOKE DrawRotatedSprite, enemy3.bitmapPtr, enemy3.xpos, enemy3.ypos, enemy3.direction	; enemy
+	;INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
+
 	INVOKE DrawProjectiles ;fighter's projectiles
-
-	;mov esi, OFFSET thing
-	;mov ebx, OFFSET nuke_001
+	;mov esi, OFFSET projectileArray 
 	;INVOKE DrawRotatedSprite, (PROJECTILE PTR[esi]).bitmapPtr, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
-	;INVOKE DrawRotatedSprite, ebx, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
-	
-	INVOKE ProjectileIntersect
-	sub enemy0.health, eax
-	cmp enemy0.health, 0
-	jge enemyAlive
-	mov enemy0.xpos, 0
-enemyAlive:
-	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.bitmapPtr ; Check for fighter-Asteroid intersection
-
+	;add esi, 28
+	;INVOKE DrawRotatedSprite, (PROJECTILE PTR[esi]).bitmapPtr, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
+	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, speedPowerup.xpos, speedPowerup.ypos, speedPowerup.bitmapPtr
+	cmp eax, 0
+	jz noPowerup
+	;INVOKE PlaySound ,offset SndPathSelect, 0, SND_FILENAME OR SND_ASYNC	; Plays select.wav
+	mov speedPowerup.xpos, 39457280
+	mov speedPowerup.ypos, 39457280
+	INVOKE FixMul, speedMul, 020f00h
+	cmp eax, 0f00ffh
+	jle fine
+	mov eax, 0f00ffh
+fine:
+	mov speedMul, eax
+noPowerup:
 	;Checks for intersection
 	cmp eax, 0
 	jz reset_flag ; Exit if no intersection

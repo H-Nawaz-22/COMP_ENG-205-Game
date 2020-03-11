@@ -557,10 +557,32 @@ enemy_0_still EECS205BITMAP <44, 37, 255,, offset enemy_0_still + sizeof enemy_0
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 
+speedPowerupSprite EECS205BITMAP <15, 16, 255,, offset speedPowerupSprite + sizeof speedPowerupSprite>
+	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
+	BYTE 0ffh,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
+	BYTE 0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0ffh,0ffh,0e0h
+	BYTE 0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h
+	BYTE 0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h
+	BYTE 0e0h,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh
+	BYTE 0ffh,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh
+	BYTE 0ffh,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0ffh
+	BYTE 0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0ffh,0ffh
+	BYTE 0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0ffh,0ffh
+	BYTE 0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0e0h,0e0h
+	BYTE 0e0h,0e0h,0e0h,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h
+	BYTE 0e0h,0e0h,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h
+	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh
+	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0e0h,0e0h,0e0h,0e0h,0e0h,0ffh,0ffh,0ffh,0ffh,0ffh
 
 fighter0 ACTOR <20971520, 15728640, 0, 0, 0, 3, offset fighter_0_still>
-enemy0 ACTOR <20971520, 15728640, 0, 0, 0, 25, offset enemy_0_still>
-asteroid1 ACTOR <10971520, 16384000, 0, 0, 0, 3,  offset asteroid_000>
+enemy0 ACTOR <-1000, -1000, 0, 0, 0, 5, offset enemy_0_still>
+enemy1 ACTOR <45457280,-1000,  0, 0, 0, 5, offset enemy_0_still>
+enemy2 ACTOR <-1000, 29592960, 0, 0, 0, 5, offset enemy_0_still>
+enemy3 ACTOR <39457280, 29592960, 0, 0, 0, 5, offset enemy_0_still>
+asteroid1 ACTOR <10971520, 16384000, 0, 0, 0, 5,  offset asteroid_000>
+speedPowerup ACTOR <39457280, 39457280, 0, 0, 0, 5, offset speedPowerupSprite>
+
+
 
 .CODE
 

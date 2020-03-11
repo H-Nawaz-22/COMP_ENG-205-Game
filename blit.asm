@@ -229,7 +229,7 @@ RotateBlit PROC USES eax ebx ecx edx esi edi lpBmp:PTR EECS205BITMAP, xcenter:DW
 		mov cl, BYTE PTR [eax]
 		cmp cl, transparent					; If color matches transparent color
 		je skip								; Don't draw the pixel
-		INVOKE DrawPixel, sumX, sumY, cl	; Draws pixel
+		INVOKE DrawPixel, sumX, sumY, ecx	; Draws pixel
 
 	skip:
 		inc dstX			; increment column

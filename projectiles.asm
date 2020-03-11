@@ -19,12 +19,11 @@ include game.inc
 include projectiles.inc
 ;; Has keycodes
 include keys.inc
-
 .DATA
-
 .CODE
-SpawnProjectile PROC USES eax ebx ecx esi edx xcenter:DWORD, ycenter:DWORD, angle:DWORD
+SpawnProjectile PROC USES ebx ecx esi edx edi xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	LOCAL direction1:DWORD
+	mov edi, eax
 	mov eax, projectileArrayLength
 	mov ecx, 28
 	mul ecx
@@ -64,19 +63,25 @@ continue4:
 	mov (PROJECTILE PTR[esi]).vel, eax
 	mov eax, direction1
 	mov (PROJECTILE PTR[esi]).direction, eax
+	;mov eax, OFFSET nuke_001
+	;mov (PROJECTILE PTR[esi]).bitmapPtr, eax
 	inc projectileArrayLength	
 	cmp projectileArrayLength, 100
+
 	jl return
 	mov projectileArrayLength, 0
+	
 return:
+	mov eax, edi
 	ret
 SpawnProjectile ENDP
 
-IterateProjectiles PROC USES eax ebx ecx edx esi
+IterateProjectiles PROC USES ebx ecx edx esi edi
+	mov edi, eax
 	mov esi, OFFSET projectileArray
 	mov eax, projectileArrayLength
 	mov ecx, 28
-	mul ecx
+	imul ecx
 	add eax, esi
 	jmp eval
 body:
@@ -98,11 +103,13 @@ continue2:
 eval:
 	cmp esi, eax
 	jl body
+	mov eax, edi
 	ret
 IterateProjectiles ENDP
 
-DrawProjectiles PROC USES eax ebx ecx edx esi
-	mov esi, OFFSET projectileArray
+DrawProjectiles PROC USES ebx ecx edx esi
+	mov ebx, eax
+	lea esi, projectileArray
 	mov eax, projectileArrayLength
 	mov ecx, 28
 	imul ecx
@@ -114,6 +121,7 @@ body:
 eval:
 	cmp esi, eax
 	jl body
+	mov eax, ebx
 	ret
 DrawProjectiles ENDP
 
@@ -193,8 +201,9 @@ return:
 	ret 
 CheckIntersect ENDP
 
-ProjectileIntersect PROC USES ebx ecx edx esi
+ProjectileIntersect PROC USES ebx ecx edx esi enemy:DWORD
 	mov esi, OFFSET projectileArray
+	mov edi, enemy
 	mov eax, projectileArrayLength
 	mov ecx, 28
 	imul ecx
@@ -203,10 +212,11 @@ ProjectileIntersect PROC USES ebx ecx edx esi
 	mov ecx, 0
 	jmp eval
 body:
-	INVOKE CheckIntersect, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, (PROJECTILE PTR[esi]).bitmapPtr, enemy0.xpos, enemy0.ypos, enemy0.bitmapPtr
+	INVOKE CheckIntersect, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, (PROJECTILE PTR[esi]).bitmapPtr, (ACTOR PTR[edi]).xpos, (ACTOR PTR[edi]).ypos, (ACTOR PTR[edi]).bitmapPtr
 	cmp eax, 0
 	jz noCollide
 	inc ecx
+
 noCollide:
 	add esi, 28
 eval:
