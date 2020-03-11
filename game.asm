@@ -14,7 +14,10 @@
 ;INSHALLAH
 ;(1) PRIMITIVE PROJECTILE SYSTEM WORKING
 ;CLEAN UP CODE, MAKE NEW .ASM AND ORGANIZE FUNCTIONS, MAKE NEW FUNCTIONS
+
+
 ;ADD 'ACTIVE' VARIABLE FOR PROJECTILES TO INDICATE IF THEY SHOULD BE DRAWN OR NOT, FIX PROJECTILES RESETTING AFTER 100
+
 ;FIX PAUSE AND CONDITION FOR ROTATE/SHOOTING SO ONLY WASD (*)
 ;ADD TIMER TO LIMIT SPEED OF PROJECTILES
 ;IMPLEMENT COLLISION FOR PROJECTILES (*)
@@ -49,6 +52,7 @@ include lines.inc
 include trig.inc
 include blit.inc
 include game.inc
+include projectiles.inc
 
 ;; Has keycodes
 include keys.inc
@@ -56,9 +60,6 @@ include keys.inc
 .DATA
 
 ;;  These are fixed point values that correspond to important angles
-PI_HALF DWORD 102943           	;;  PI / 2
-PI DWORD 205887	                ;;  PI 
-TWO_PI DWORD  411774                ;;  2 * PI 
 
 pauseFlag BYTE 0
 
@@ -69,9 +70,8 @@ timeHigh DWORD 0
 
 lastKey DWORD 0
 
-
-projectileArraySize DWORD 0
-projectileArray PROJECTILE 100 DUP(<, , , , , , OFFSET nuke_001>)
+projectileArraySize DWORD 10
+projectileArray PROJECTILE 100 DUP(<300, 200, , , , , OFFSET nuke_001>)
 
 SndPath BYTE "select.wav",0
 
@@ -93,95 +93,9 @@ cond:
 	ret
 ClearScreen ENDP
 
-DrawRotatedSprite PROC USES eax lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
-	INVOKE FixMul, xcenter, 1
-	mov xcenter, eax
-	INVOKE FixMul, ycenter, 1
-	mov ycenter, eax
-	;shr xcenter, 16
-	;shr ycenter, 16
-	INVOKE RotateBlit, lpBmp, xcenter, ycenter, angle
-	ret
-DrawRotatedSprite ENDP
-
-;; Returns a non-zero value if the sprites specified by oneBitmap and twoBitmap overlap, and returns zero otherwise. The X and Y variables
-;; specify the center of the respective sprite.
-CheckIntersect PROTO STDCALL oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
-CheckIntersect PROC STDCALL USES ebx ecx esi oneX:DWORD, oneY:DWORD, oneBitmap:PTR EECS205BITMAP, twoX:DWORD, twoY:DWORD, twoBitmap:PTR EECS205BITMAP
-LOCAL one_Left:DWORD, one_Right:DWORD, one_Top:DWORD, one_Bottom:DWORD, two_Left:DWORD, two_Right:DWORD, two_Top:DWORD, two_Bottom:DWORD
-
-; --- Sprite 1 ---
-mov esi, oneBitmap 
-mov ebx, (EECS205BITMAP PTR [esi]).dwWidth	
-shr ebx, 1
-mov ecx, (EECS205BITMAP PTR [esi]).dwHeight 
-shr ecx, 1
-;Calculate bounds of sprite 1
-mov eax, oneX
-mov one_Left, eax
-mov one_Right, eax
-mov eax, oneY
-mov one_Top, eax
-mov one_Bottom, eax
-
-sub one_Left, ebx
-add one_Right, ebx
-sub one_Top, ecx
-add one_Bottom, ecx
-
-; --- Sprite 2 ---
-mov esi, twoBitmap
-mov ebx, (EECS205BITMAP PTR [esi]).dwWidth
-shr ebx, 1
-mov ecx, (EECS205BITMAP PTR [esi]).dwHeight
-shr ecx, 1
-;Calculate bounds of sprite 2
-mov eax, twoX
-mov two_Left, eax
-mov two_Right, eax
-mov eax, twoY
-mov two_Top, eax
-mov two_Bottom, eax
-
-sub two_Left, ebx
-add two_Right, ebx
-sub two_Top, ecx
-add two_Bottom, ecx
-
-; Check if the sprites overlap horizontally
-mov eax, 0
-mov ebx, one_Left
-cmp ebx, two_Right
-jge return
-mov ebx, two_Left
-cmp ebx, one_Right
-jge return
-
-; Check if the sprites overlap vertically
-mov ebx, one_Top
-cmp ebx, two_Bottom
-jge return
-mov ebx, two_Top
-cmp ebx, one_Bottom
-jge return
-
-; Non-zero value to return
-mov eax, 0ffffh
-return:
-	ret 
-CheckIntersect ENDP
-
-; Code to be run once when the game first starts up.
-GameInit PROC USES ebx
-	INVOKE DrawStarField
-	rdtsc  ; Gets the time
-	mov timeLow, eax
-	mov timeHigh, edx
-	ret
-GameInit ENDP
 
 RotateFighter PROC USES ebx KeyValue:DWORD
-	mov eax, fighter0.direction
+	mov eax, 1
 	cmp KeyValue, 057h ; W
 	jnz continue1
 	mov eax, 0
@@ -205,9 +119,20 @@ continue3:
 	mov eax, PI
 	add eax, PI_HALF
 return:
-	mov fighter0.direction, eax
 	ret
 RotateFighter ENDP
+
+
+DrawRotatedSprite PROC USES eax lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
+	INVOKE FixMul, xcenter, 1
+	mov xcenter, eax
+	INVOKE FixMul, ycenter, 1
+	mov ycenter, eax
+	;shr xcenter, 16
+	;shr ycenter, 16
+	INVOKE RotateBlit, lpBmp, xcenter, ycenter, angle
+	ret
+DrawRotatedSprite ENDP
 
 ;Returns the inverse magnitude of a 2-D vector with initial point (x0,y0) and final point (x1,y1). The return value is FXPT.
 InverseSqrt PROC USES ebx edx x0:DWORD, y0:DWORD, x1:DWORD, y1:DWORD
@@ -245,99 +170,14 @@ return:
 	ret
 InverseSqrt ENDP
 
-SpawnProjectile PROC USES eax ebx ecx esi edx xcenter:DWORD, ycenter:DWORD, angle:DWORD
-	LOCAL direction1:DWORD
-	mov eax, projectileArraySize
-	mov ecx, 28
-	mul ecx
-	mov esi, OFFSET projectileArray
-	add esi, eax
-	mov ebx, angle
-	cmp ebx, 0
-	jnz continue1
-	mov direction1, 1
-	mov (PROJECTILE PTR[esi]).orientation, 1
-	jmp continue4
-continue1:
-	cmp ebx, PI_HALF
-	jnz continue2
-	mov direction1, 0
-	mov (PROJECTILE PTR[esi]).orientation, 0
-	jmp continue4
-continue2:
-	cmp ebx, PI
-	jnz continue3
-	mov direction1, 0
-	mov (PROJECTILE PTR[esi]).orientation, 1
-	jmp continue4
-continue3:
-	mov edx, PI
-	add edx, PI_HALF
-	cmp ebx, edx
-	jnz continue4
-	mov direction1, 1
-	mov (PROJECTILE PTR[esi]).orientation, 0
-continue4:
-	mov eax, xcenter
-	mov (PROJECTILE PTR[esi]).xpos, eax
-	mov eax, ycenter
-	mov (PROJECTILE PTR[esi]).ypos, eax
-	mov eax, 01fffffh
-	mov (PROJECTILE PTR[esi]).vel, eax
-	mov eax, direction1
-	mov (PROJECTILE PTR[esi]).direction, eax
-	inc projectileArraySize	
-	cmp projectileArraySize, 100
-	jl return
-	mov projectileArraySize, 0
-return:
+; Code to be run once when the game first starts up.
+GameInit PROC USES ebx
+	INVOKE DrawStarField
+	rdtsc  ; Gets the time
+	mov timeLow, eax
+	mov timeHigh, edx
 	ret
-SpawnProjectile ENDP
-
-IterateProjectiles PROC USES eax ebx ecx edx esi
-	mov esi, OFFSET projectileArray
-	mov eax, projectileArraySize
-	mov ecx, 28
-	mul ecx
-	add eax, esi
-	jmp eval
-body:
-	mov ecx, (PROJECTILE PTR[esi]).vel
-	mov ebx, (PROJECTILE PTR[esi]).direction
-	mov edx, (PROJECTILE PTR[esi]).orientation
-	cmp ebx, 0
-	jz dontNegate
-	neg ecx
-dontNegate:
-	cmp edx, 0
-	jnz continue1
-	add (PROJECTILE PTR[esi]).xpos, ecx
-	jmp continue2
-continue1:
-	add (PROJECTILE PTR[esi]).ypos, ecx
-continue2:
-	add esi, 28
-eval:
-	cmp esi, eax
-	jl body
-	ret
-IterateProjectiles ENDP
-
-DrawProjectiles PROC USES eax ebx ecx edx esi
-	mov esi, OFFSET projectileArray
-	mov eax, projectileArraySize
-	mov ecx, 28
-	mul ecx
-	add eax, esi
-	jmp eval
-body:
-	INVOKE DrawRotatedSprite, (PROJECTILE PTR[esi]).bitmapPtr, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
-	add esi, 28
-eval:
-	cmp esi, eax
-	jl body
-	ret
-DrawProjectiles ENDP
+GameInit ENDP
 
 ; Code to be run repeatedly, multiple times a second, to update game.
 GamePlay PROC USES esi ebx ecx edx eax
@@ -397,14 +237,11 @@ fighterStill1:
 	jz fighterStill2
 	mov fighter0.bitmapPtr, offset fighter_0_moving
 fighterStill2:
-
-	; Update fighter's direction to WASD input
-
 	mov ebx, KeyPress
-	cmp ebx, 0
-	jz SkipRotate
 	INVOKE RotateFighter, ebx
-	mov fighter0.direction, eax
+	cmp eax, 1			;If RotateFighter returns 1, WASD was not pressed
+	jz SkipRotate
+	mov fighter0.direction, eax 	; Update fighter's direction to WASD input
 	rdtsc
 	;cmp edx, timeHigh
 	;jz SkipRotate
@@ -413,14 +250,15 @@ SkipRotate:
 	rdtsc
 	mov timeHigh, edx
 	add asteroid1.direction, 10000 ; Increment asteroid's angle
-	INVOKE IterateProjectiles
+	;INVOKE IterateProjectiles
 	;Update screen
 	INVOKE ClearScreen
 	INVOKE DrawStarField
 	INVOKE DrawRotatedSprite, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
 	INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
-	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.bitmapPtr ; Check for fighter-Asteroid intersection
 	INVOKE DrawProjectiles
+	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.bitmapPtr ; Check for fighter-Asteroid intersection
+
 	;Checks for intersection
 	cmp eax, 0
 	jz reset_flag ; Exit if no intersection

@@ -11,22 +11,27 @@
       .STACK 4096
       option casemap :none  ; case sensitive
 
+include stars.inc
+include lines.inc
 include trig.inc
+include blit.inc
+include game.inc
+include projectiles.inc
+;; Has keycodes
+include keys.inc
 
 .DATA
 
 ;;  These are some useful constants (fixed point values that correspond to important angles)
-PI_HALF = 102943           	;;  PI / 2
-PI =  205887	                ;;  PI 
-TWO_PI	= 411774                ;;  2 * PI 
-PI_INC_RECIP =  5340353        	;;  Use reciprocal to find the table entry for a given angle
+PI_HALF DWORD 102943           	;;  PI / 2
+PI DWORD 205887	                ;;  PI 
+TWO_PI DWORD 411774                ;;  2 * PI 
+PI_INC_RECIP DWORD 5340353        	;;  Use reciprocal to find the table entry for a given angle
 	                        ;;              (It is easier to use than divison would be)
-
 
 	;; If you need to, you can place global variables here
 	
 .CODE
-
 
 FixedSin PROC USES ebx ecx edx angle:FXPT
 ; Returns (to eax) the sine of a fixed-point value

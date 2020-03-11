@@ -56,9 +56,13 @@ ml /I%MASMINCPATH% /c  /coff  /Cp game.asm
 
 if %errorlevel% neq 0 goto :error
 
-ml  /c  /coff  /Cp fighter_000.asm || goto :error
+ml  /I%MASMINCPATH% /c  /coff  /Cp sprites.asm 
 
-link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj fighter_000.obj libgame.obj
+if %errorlevel% neq 0 goto :error
+
+ml /I%MASMINCPATH% /c  /coff  /Cp projectiles.asm 
+
+link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj sprites.obj projectiles.obj libgame.obj
 
 if %errorlevel% neq 0 goto :error
 
