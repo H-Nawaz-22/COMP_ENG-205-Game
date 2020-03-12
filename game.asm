@@ -3,36 +3,11 @@
 ;   game.asm - Assembly file for CompEng205 Assignment 4/5
 ;	
 ;	INSTRUCTIONS - Control the fighter's position with the mouse, and use WASD to control the fighter's angle. 
-;	Colliding the fighter with the asteroid should trigger a sound effect.
+;	Shoot the incoming enemies to gain points. Enemies can drop speed powerups. The game ends when you have been
+;	hit by an enemy three times.
 ;	Sound credit: reliccastle.com/members/1
 ;
 ; #########################################################################
-
-
-;;
-;NOTES:
-;(1) PRIMITIVE PROJECTILE SYSTEM WORKING
-;CLEAN UP CODE, MAKE NEW .ASM AND ORGANIZE FUNCTIONS, MAKE NEW FUNCTIONS
-
-
-;ADD 'ACTIVE' VARIABLE FOR PROJECTILES TO INDICATE IF THEY SHOULD BE DRAWN OR NOT, FIX PROJECTILES RESETTING AFTER 100
-
-;ADD TIMER TO LIMIT SPEED OF PROJECTILES
-;IMPLEMENT SOUND FOR PROJECTILES (2)
-
-;SPAWNING SYSTEM FOR ENEMIES
-;POWERUPS (3)
-
-;EXTRA STUFF
-;UPGRADE SPEED, HEATLH, POWER, RANGE, ETC
-;PICKUPS
-;TRICK PICKUPS (NUKE)
-;USE PICKUPS TO BUY UPGRADES
-;SCREEN WIPE EXPLOSION POWERUP
-;SCREEN SHAKING
-;FINAL BOSS
-;PICK STARTER FIGHTER WITH DIFFERENT STARTING STATS
-
 
 .586
 .MODEL FLAT,STDCALL
@@ -58,27 +33,28 @@ include keys.inc
 
 ;;  These are fixed point values that correspond to important angles
 
+
+;Global variable
 pauseFlag BYTE 0
-intersectFlag DWORD 0
 
-timeLow DWORD 0
-timeHigh DWORD 0
+timeLow DWORD 0 ;eax with rdstc
+timeHigh DWORD 0 ;edx with rdstc
 
-stage DWORD 0
-statusFlag DWORD 0
+stage DWORD 0		;Difficulty
+statusFlag DWORD 0	;Game over flag
 score DWORD 0
+
 
 gameOverMessage BYTE "Game Over! Score: %d", 0
 outStr BYTE 256 DUP(0)
 
-speedMul DWORD 0400ffh
-enemyspeedMul DWORD 0400ffh
-lastKey DWORD 0
+speedMul DWORD 0400ffh ;Speed multiplier for PC
+enemyspeedMul DWORD 0400ffh ;Speed multiplier for NPCs
+lastKey DWORD 0	;Last key pressed
 
 projectileArrayLength DWORD 0
 projectileArray PROJECTILE 100 DUP(<20971520, 15728640, 100000 , , 1,1 , OFFSET nuke_001>)
 
-SndPathSelect BYTE "select.wav",0
 SndPathDamage BYTE "damage.wav",0
 
 .CODE
@@ -109,6 +85,7 @@ GameOver PROC
 	invoke DrawStr, offset outStr, 230, 200, 0ffh
 GameOver ENDP
 
+;Changes the angle in fighter0's angle to correspond to WASD
 RotateFighter PROC USES ebx KeyValue:DWORD
 	mov eax, 1
 	cmp KeyValue, 057h ; W
@@ -137,10 +114,12 @@ return:
 	ret
 RotateFighter ENDP
 
+;Runs when an enemy is defeated. Increments the difficulty (stage), score, and increases
+;the speed of NPC's. There is also a 1/2 of dropping a speec powerup where the enemy was defeated.
 DefeatEnemy PROC USES ebx ecx esi xpos:DWORD, ypos:DWORD
-	inc stage
+	inc stage ;difficulty level
 	inc score
-	INVOKE FixMul, enemyspeedMul, 010f00h
+	INVOKE FixMul, enemyspeedMul, 010f00h ;Multiplies the enemies' speed
 	mov enemyspeedMul, eax
 	rdtsc
 	and eax, 01b
@@ -149,62 +128,73 @@ DefeatEnemy PROC USES ebx ecx esi xpos:DWORD, ypos:DWORD
 	mov ebx, xpos
 	mov ecx, ypos
 	lea esi, speedPowerup
-	mov [esi], ebx
-	add esi, 4
-	mov [esi], ecx
+	;Program crashes if field references are used, so direct addressing is used instead
+	mov [esi], ebx	;mov speedPowerup.xpos, ebx
+	add esi, 4		
+	mov [esi], ecx	;mov speedPowerup.ypos, ecx
 noPowerup:
 	ret
 DefeatEnemy ENDP
 
+;Runs when one of the fighter intersects with one of the enemies. Decrements the fighter's health, plays a sound effect,
+;and checks if the fighter is still alive, if the fighter has lost all its health, sets a flag to indicate a game over.
 InflictDamage PROC
 	dec fighter0.health
 	INVOKE PlaySound ,offset SndPathDamage, 0, SND_FILENAME OR SND_ASYNC	; Plays damage.wav
 	mov eax, 0
 	cmp fighter0.health, 0
 	jnz fighterAlive
-	mov statusFlag, 1
+	mov statusFlag, 1	;Game over flag
 fighterAlive:
 	ret
 InflictDamage ENDP
 
+;Needed for program to build properly (likely because MoveEnemies uses this function)
 InverseSqrt PROTO x0:DWORD, x1:DWORD, y0:DWORD, y1:DWORD
 
+;Moves a number of enemies corresponding to the difficult level, starting at just moving one enemy and eventually
+;moving all four enemies every loop. This function also checks if an enemy has lost all its health, and if it has,
+;it moves that enemy off screen to be respawned. Instead of using a loop, this function performs the same instructions
+;on all four enemies, but with the respawn location different for each one. See the instructions for enemy0 for comments
+;that apply to all of the enemies.
 MoveEnemies PROC USES ebx ecx
 	LOCAL inverseSqrt:DWORD
+	;Enemy 0 (Top Left)
 	mov ebx, fighter0.xpos
 	sub ebx, enemy0.xpos
 	mov ecx, fighter0.ypos
 	sub ecx, enemy0.ypos
-	INVOKE InverseSqrt, fighter0.xpos, fighter0.ypos, enemy0.xpos, enemy0.ypos
+	INVOKE InverseSqrt, fighter0.xpos, fighter0.ypos, enemy0.xpos, enemy0.ypos	;Gets inverse magnitude
 	mov inverseSqrt, eax
-	INVOKE FixMul, inverseSqrt, ebx ;Normalises delta x
+	INVOKE FixMul, inverseSqrt, ebx		;Normalises delta x
 	INVOKE FixMul, eax, enemyspeedMul	;Speed multiplier
-	add enemy0.xpos, eax			;Updates position
+	add enemy0.xpos, eax				;Updates position
 enemy0Still1:
-	INVOKE FixMul, inverseSqrt, ecx ; Normalises delta y
+	INVOKE FixMul, inverseSqrt, ecx		; Normalises delta y
 	INVOKE FixMul, eax, enemyspeedMul	; Speed multiplier
-	add enemy0.ypos, eax			; Updates position
+	add enemy0.ypos, eax				; Updates position
 enemy0Still2:
 	INVOKE ProjectileIntersect, OFFSET enemy0
 	sub enemy0.health, eax
 	cmp enemy0.health, 0
 	jge enemy0Alive
-	INVOKE DefeatEnemy, enemy0.xpos, enemy0.ypos
-	mov enemy0.xpos, -10000000
+	INVOKE DefeatEnemy, enemy0.xpos, enemy0.ypos	;If enemy is dead
+	mov enemy0.xpos, -10000000	;Respawn enemy
 	mov enemy0.ypos, -10000000
-	mov enemy0.health, 5
+	mov enemy0.health, 5	;Revive enemy
 enemy0Alive:	
 	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, enemy0.xpos, enemy0.ypos, enemy0.bitmapPtr
 	cmp eax, 0
 	jz noDamage1
-	INVOKE InflictDamage
+	INVOKE InflictDamage		;If enemy hits player
 	mov enemy0.xpos, -10000000
 	mov enemy0.ypos, -10000000
 	mov enemy0.health, 5
 noDamage1:
-	cmp stage, 2
+	cmp stage, 2	;Only continues to draw enemies if the difficulty is low enough
 	jle return
 
+	;Enemy 1 (Top Right)
 	mov ebx, fighter0.xpos
 	sub ebx, enemy1.xpos
 	mov ecx, fighter0.ypos
@@ -239,6 +229,7 @@ noDamage2:
 	cmp stage, 3
 	jle return
 
+	;Enemy 2 (Bottom Left)
 	mov ebx, fighter0.xpos
 	sub ebx, enemy2.xpos
 	mov ecx, fighter0.ypos
@@ -273,6 +264,7 @@ noDamage3:
 	cmp stage, 5
 	jle return
 
+	;Enemy 2 (Bottom Right)
 	mov ebx, fighter0.xpos
 	sub ebx, enemy3.xpos
 	mov ecx, fighter0.ypos
@@ -308,6 +300,7 @@ return:
 	ret
 MoveEnemies ENDP
 
+;Same as RotateBlit, but takes FXPT parameters for xcenter and ycenter, instead of integer
 DrawRotatedSprite PROC USES ebx ecx edx lpBmp:PTR EECS205BITMAP, xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	mov ebx, eax ;stores eax
 	INVOKE FixMul, xcenter, 1
@@ -320,6 +313,7 @@ DrawRotatedSprite PROC USES ebx ecx edx lpBmp:PTR EECS205BITMAP, xcenter:DWORD, 
 DrawRotatedSprite ENDP
 
 ;Returns the inverse magnitude of a 2-D vector with initial point (x0,y0) and final point (x1,y1). The return value is FXPT.
+;NOTE: REPLACE WITH FAST INVERSE SQUARE ROOT
 InverseSqrt PROC USES ebx edx x0:DWORD, y0:DWORD, x1:DWORD, y1:DWORD
 	LOCAL sumSquares:DWORD, sqrt:DWORD, scaling:DWORD, answer:DWORD, threshold:DWORD
 	mov threshold, 50
@@ -328,27 +322,24 @@ InverseSqrt PROC USES ebx edx x0:DWORD, y0:DWORD, x1:DWORD, y1:DWORD
 	sub ebx, x0
 	mov eax, ebx
 	imul ebx
-	;INVOKE FixMul, eax, ebx
 	mov sumSquares, edx
 	mov ebx, y1
 	sub ebx, y0
 	mov eax, ebx
 	imul ebx
-	;INVOKE FixMul, eax, ebx
-	add sumSquares, edx
-	;shr sumSquares, 16
+	add sumSquares, edx		;sumSquares now equals (deltax)^2 + (deltay)^2
 	mov ebx, threshold	
 	cmp sumSquares, ebx
 	jl return
-	.XMM
+	.XMM					  ;Floating point registers to allow for square root 
 	cvtsi2ss xmm0, sumSquares ;Moves (x^2 + y^2) to xmm0
 	rsqrtss xmm1, xmm0		  ;Inverse square root
-	movss sqrt, xmm1		  ;Moves square root value to memory
-	mov scaling, 16			  ;Scaling for shift left of 16
+	movss sqrt, xmm1		  ;Moves inverse square root value to memory
+	mov scaling, 16			  ;Scaling for shift left of 16, needed to change to fixed point
 	fild scaling			  
 	fld sqrt
 	fscale					  ;Multiplication by 2^16, forces floating point to be integer
-	fistp answer				  ;Stores result
+	fistp answer			 ;Stores result
 	fistp scaling
 return:
 	mov eax, answer
@@ -358,9 +349,6 @@ InverseSqrt ENDP
 ; Code to be run once when the game first starts up.
 GameInit PROC USES ebx
 	INVOKE DrawStarField
-	rdtsc  ; Gets the time
-	mov timeLow, eax
-	mov timeHigh, edx
 	ret
 GameInit ENDP
 
@@ -368,11 +356,11 @@ GameInit ENDP
 GamePlay PROC USES esi ebx ecx edx eax
 	LOCAL mouseX:DWORD, mouseY:DWORD, inverseSqrt:DWORD
 	mov eax, KeyPress
-	cmp eax, 050h
-	jnz dontTogglePause
-	cmp eax, lastKey
-	jz dontTogglePause
-	not pauseFlag
+	cmp eax, 050h		;P
+	jnz dontTogglePause ;If P was not pressed
+	cmp eax, lastKey		
+	jz dontTogglePause ;If P wasn't pressed last loop
+	not pauseFlag		;Toggle pause
 dontTogglePause:
 	mov lastKey, eax
 	cmp pauseFlag, 0
@@ -386,7 +374,7 @@ continueGame:
 
 	mov fighter0.bitmapPtr, offset fighter_0_still
 
-	;For debugging, force mouse location to constant value
+	;For debugging, force mouse location and keyboard press to constant value
 	;mov MouseStatus.horiz, 500
 	;mov MouseStatus.vert, 100
 	;mov KeyPress, 044h
@@ -420,63 +408,41 @@ fighterStill1:
 fighterStill2:
 	mov ebx, KeyPress
 	INVOKE RotateFighter, ebx
-	cmp eax, 1			;If RotateFighter returns 1, WASD was not pressed
+	cmp eax, 1						;If RotateFighter returns 1, WASD was not pressed
 	jz SkipRotate
 	mov fighter0.direction, eax 	; Update fighter's direction to WASD input
-	rdtsc
-	;cmp edx, timeHigh
-	;jz SkipRotate
-	INVOKE SpawnProjectile, fighter0.xpos, fighter0.ypos, fighter0.direction
+	INVOKE SpawnProjectile, fighter0.xpos, fighter0.ypos, fighter0.direction ;If WASD was pressed, spawn a new projectile
 
 SkipRotate:
 	INVOKE MoveEnemies
-	
 	rdtsc
-	mov timeHigh, edx
-	add asteroid1.direction, 10000 ; Increment asteroid's angle
-	INVOKE IterateProjectiles
-
-
+	INVOKE IterateProjectiles	;Moves all the projectiles forward according to their velocity
 
 	;Update screen
 	INVOKE ClearScreen
 	INVOKE DrawStarField
 	INVOKE DrawRotatedSprite, fighter0.bitmapPtr, fighter0.xpos, fighter0.ypos, fighter0.direction	; fighter
-	INVOKE DrawRotatedSprite, speedPowerup.bitmapPtr, speedPowerup.xpos, speedPowerup.ypos, 0
+	INVOKE DrawRotatedSprite, speedPowerup.bitmapPtr, speedPowerup.xpos, speedPowerup.ypos, 0 ;speed power up
 	INVOKE DrawRotatedSprite, enemy0.bitmapPtr, enemy0.xpos, enemy0.ypos, enemy0.direction	; enemy
 	INVOKE DrawRotatedSprite, enemy1.bitmapPtr, enemy1.xpos, enemy1.ypos, enemy1.direction	; enemy
 	INVOKE DrawRotatedSprite, enemy2.bitmapPtr, enemy2.xpos, enemy2.ypos, enemy2.direction	; enemy
 	INVOKE DrawRotatedSprite, enemy3.bitmapPtr, enemy3.xpos, enemy3.ypos, enemy3.direction	; enemy
-	;INVOKE DrawRotatedSprite, asteroid1.bitmapPtr, asteroid1.xpos, asteroid1.ypos, asteroid1.direction	;Asteroid
 
 	INVOKE DrawProjectiles ;fighter's projectiles
-	;mov esi, OFFSET projectileArray 
-	;INVOKE DrawRotatedSprite, (PROJECTILE PTR[esi]).bitmapPtr, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
-	;add esi, 28
-	;INVOKE DrawRotatedSprite, (PROJECTILE PTR[esi]).bitmapPtr, (PROJECTILE PTR[esi]).xpos, (PROJECTILE PTR[esi]).ypos, 0
+
+	;Speed Powerup
 	INVOKE CheckIntersect, fighter0.xpos, fighter0.ypos, fighter0.bitmapPtr, speedPowerup.xpos, speedPowerup.ypos, speedPowerup.bitmapPtr
 	cmp eax, 0
 	jz noPowerup
-	;INVOKE PlaySound ,offset SndPathSelect, 0, SND_FILENAME OR SND_ASYNC	; Plays select.wav
-	mov speedPowerup.xpos, 39457280
+	mov speedPowerup.xpos, 39457280	;Moves powerup off screen when collected
 	mov speedPowerup.ypos, 39457280
-	INVOKE FixMul, speedMul, 020f00h
+	INVOKE FixMul, speedMul, 020f00h	;Increases player speed when collected
 	cmp eax, 0f00ffh
-	jle fine
-	mov eax, 0f00ffh
-fine:
+	jle noAdjust
+	mov eax, 0f00ffh	;Cap's player speed if higher than a certain value
+noAdjust:
 	mov speedMul, eax
 noPowerup:
-	;Checks for intersection
-	cmp eax, 0
-	jz reset_flag ; Exit if no intersection
-	cmp intersectFlag, 0
-	jnz return	  ; Exit if already intersecting on last call
-	;INVOKE PlaySound, offset SndPath, 0, SND_FILENAME OR SND_ASYNC	; Plays select.wav
-	mov intersectFlag, 1
-	jmp return
-reset_flag:
-	mov intersectFlag, 0
 return:
 	ret
 GamePlay ENDP

@@ -26,12 +26,13 @@ _ACTOR STRUCT
  bitmapPtr    DWORD  ?
 _ACTOR ENDS
 
+;For projectiles with autonomous behavior
 _PROJECTILE STRUCT
  xpos         DWORD  ?
  ypos         DWORD  ?
- vel          DWORD  ?
- distance     DWORD  ?  
- orientation  DWORD  ? ;0 for x, 1, for y
+ vel          DWORD  ? ;Speed
+ distance     DWORD  ? ;Not used
+ orientation  DWORD  ? ;0 for x, 1 for y
  direction    DWORD  0 ;0 for positive, 1 for negative
  bitmapPtr    DWORD  ?
 _PROJECTILE ENDS

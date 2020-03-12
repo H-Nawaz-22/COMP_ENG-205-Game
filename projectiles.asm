@@ -21,14 +21,21 @@ include projectiles.inc
 include keys.inc
 .DATA
 .CODE
+
+; NOTE:Most of these functions use the same code to loop through projectileArray,
+; consider making a helper function for that
+
+;Increases the number of projectiles by one, and places that projectile where the fighter is, with a 
+;velocity with direction "angle"
 SpawnProjectile PROC USES ebx ecx esi edx edi xcenter:DWORD, ycenter:DWORD, angle:DWORD
 	LOCAL direction1:DWORD
 	mov edi, eax
 	mov eax, projectileArrayLength
-	mov ecx, 28
+	mov ecx, 28	;28 is the number of bytes in one PROJECTILE STRUCT
 	mul ecx
 	mov esi, OFFSET projectileArray
 	add esi, eax
+	;Converts angle (in radians) to an orientation and direction
 	mov ebx, angle
 	cmp ebx, 0
 	jnz continue1
@@ -63,19 +70,17 @@ continue4:
 	mov (PROJECTILE PTR[esi]).vel, eax
 	mov eax, direction1
 	mov (PROJECTILE PTR[esi]).direction, eax
-	;mov eax, OFFSET nuke_001
-	;mov (PROJECTILE PTR[esi]).bitmapPtr, eax
 	inc projectileArrayLength	
-	cmp projectileArrayLength, 100
-
+	cmp projectileArrayLength, 100 ;If the number of projectiles has reached 100
 	jl return
-	mov projectileArrayLength, 0
+	mov projectileArrayLength, 0	;Reset the array
 	
 return:
 	mov eax, edi
 	ret
 SpawnProjectile ENDP
 
+;Increments all projectiles' positions according to their velocity
 IterateProjectiles PROC USES ebx ecx edx esi edi
 	mov edi, eax
 	mov esi, OFFSET projectileArray
@@ -89,8 +94,8 @@ body:
 	mov ebx, (PROJECTILE PTR[esi]).direction
 	mov edx, (PROJECTILE PTR[esi]).orientation
 	cmp ebx, 0
-	jz dontNegate
-	neg ecx
+	jz dontNegate	
+	neg ecx	;A direction of 1 indicates a velocity in the negative x or y direction
 dontNegate:
 	cmp edx, 0
 	jnz continue1
@@ -107,6 +112,7 @@ eval:
 	ret
 IterateProjectiles ENDP
 
+;Draws all of the projectiles in projectileArray with an index lest than projectileArrayLength
 DrawProjectiles PROC USES ebx ecx edx esi
 	mov ebx, eax
 	lea esi, projectileArray
@@ -201,6 +207,7 @@ return:
 	ret 
 CheckIntersect ENDP
 
+;Returns the number of projectiles that are currently intersecting with "enemy"
 ProjectileIntersect PROC USES ebx ecx edx esi enemy:DWORD
 	mov esi, OFFSET projectileArray
 	mov edi, enemy
