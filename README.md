@@ -5,7 +5,6 @@ Downloading 'game.exe' and 'damage.wav' is sufficient to play the game.
 To play, run game.exe.
 
 Controls:
-
 WASD to shoot
 
 Mouse to move
